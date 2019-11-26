@@ -301,7 +301,7 @@ bool StorageLiveView::getNewBlocks()
 
     /// Remove subquery if exists.
     {
-        auto * select_query = query->as<const ASTSelectQuery *>();
+        auto * select_query = query->as<ASTSelectQuery>();
 
         if (!select_query)
             throw Exception("ASTSelectQuery is expected in StorageLiveView.", ErrorCodes::LOGICAL_ERROR);
@@ -310,7 +310,7 @@ bool StorageLiveView::getNewBlocks()
         if (table_expressions.size() > 1)
             throw Exception("LiveView is not supported for multiple tables.", ErrorCodes::LOGICAL_ERROR);
 
-        auto & table_expression = table_expressions.at(0);
+        auto * table_expression = const_cast<ASTTableExpression *>(table_expressions.at(0));
         if (table_expression->subquery)
             table_expression->subquery = nullptr;
     }
