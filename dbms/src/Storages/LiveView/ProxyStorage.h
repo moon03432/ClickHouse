@@ -9,7 +9,10 @@ class ProxyStorage : public IStorage
 {
 public:
     ProxyStorage(StoragePtr storage_, BlockInputStreams streams_, QueryProcessingStage::Enum to_stage_)
-    : storage(std::move(storage_)), streams(std::move(streams_)), to_stage(to_stage_) {}
+    : storage(std::move(storage_)), streams(std::move(streams_)), to_stage(to_stage_)
+    {
+        setColumns(ColumnsDescription(streams.front()->getHeader().getNamesAndTypesList()));
+    }
 
 public:
     std::string getName() const override { return "ProxyStorage(" + storage->getName() + ")"; }
@@ -46,9 +49,6 @@ public:
     Names getColumnsRequiredForPrimaryKey() const override { return storage->getColumnsRequiredForPrimaryKey(); }
     Names getColumnsRequiredForSampling() const override { return storage->getColumnsRequiredForSampling(); }
     Names getColumnsRequiredForFinal() const override { return storage->getColumnsRequiredForFinal(); }
-
-    const ColumnsDescription & getColumns() const override { return storage->getColumns(); }
-    void setColumns(ColumnsDescription columns_) override { return storage->setColumns(columns_); }
     NameAndTypePair getColumn(const String & column_name) const override { return storage->getColumn(column_name); }
     bool hasColumn(const String & column_name) const override { return storage->hasColumn(column_name); }
     static StoragePtr createProxyStorage(StoragePtr storage, BlockInputStreams streams, QueryProcessingStage::Enum to_stage)

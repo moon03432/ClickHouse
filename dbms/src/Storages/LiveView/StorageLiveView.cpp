@@ -312,7 +312,10 @@ bool StorageLiveView::getNewBlocks()
 
         auto * table_expression = const_cast<ASTTableExpression *>(table_expressions.at(0));
         if (table_expression->subquery)
+        {
             table_expression->subquery = nullptr;
+            table_expression->database_and_table_name = std::make_shared<ASTIdentifier>(std::vector<Stri
+        }
     }
 
     InterpreterSelectQuery select(inner_query->clone(), *live_view_context, proxy_storage, SelectQueryOptions(QueryProcessingStage::Complete));
