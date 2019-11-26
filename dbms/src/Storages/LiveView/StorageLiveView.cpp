@@ -314,7 +314,8 @@ bool StorageLiveView::getNewBlocks()
         if (table_expression->subquery)
         {
             table_expression->subquery = nullptr;
-            table_expression->database_and_table_name = std::make_shared<ASTIdentifier>(std::vector<Stri
+            table_expression->database_and_table_name = std::make_shared<ASTIdentifier>(
+                    std::vector<String>({select_database_name, select_table_name}));
         }
     }
 
