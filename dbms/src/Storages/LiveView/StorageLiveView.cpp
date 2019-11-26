@@ -296,6 +296,25 @@ bool StorageLiveView::getNewBlocks()
     mergeable_blocks->push_back(new_mergeable_blocks);
     BlockInputStreamPtr from = std::make_shared<BlocksBlockInputStream>(std::make_shared<BlocksPtr>(new_mergeable_blocks), mergeable_stream->getHeader());
     auto proxy_storage = ProxyStorage::createProxyStorage(global_context.getTable(select_database_name, select_table_name), {from}, QueryProcessingStage::WithMergeableState);
+
+    auto query = inner_query->clone();
+
+    /// Remove subquery if exists.
+    {
+        auto * select_query = query->as<const ASTSelectQuery *>();
+
+        if (!select_query)
+            throw Exception("ASTSelectQuery is expected in StorageLiveView.", ErrorCodes::LOGICAL_ERROR);
+
+        auto table_expressions = getSelectTablesExpression(*select_query);
+        if (table_expressions.size() > 1)
+            throw Exception("LiveView is not supported for multiple tables.", ErrorCodes::LOGICAL_ERROR);
+
+        auto & table_expression = table_expressions.at(0);
+        if (table_expression->subquery)
+            table_expression->subquery = nullptr;
+    }
+
     InterpreterSelectQuery select(inner_query->clone(), *live_view_context, proxy_storage, SelectQueryOptions(QueryProcessingStage::Complete));
     BlockInputStreamPtr data = std::make_shared<MaterializingBlockInputStream>(select.execute().in);
 
