@@ -178,6 +178,83 @@ private:
     }
 };
 
+// bitmapBuildFromBinaryRBMString
+template <typename Name>
+class FunctionBitmapBuildFromBinaryRBMStringImpl : public IFunction
+{
+public:
+    static constexpr auto name = Name::name;
+
+    static FunctionPtr create(const Context &) { return std::make_shared<FunctionBitmapBuildFromBinaryRBMStringImpl>(); }
+
+    String getName() const override { return name; }
+
+    bool isVariadic() const override { return false; }
+
+    size_t getNumberOfArguments() const override { return 1; }
+
+    DataTypePtr getReturnTypeImpl(const DataTypes & arguments) const override
+    {
+        if (arguments[0]->onlyNull())
+            return arguments[0];
+
+        if (!isString(arguments[0]))
+            throw Exception("Illegal type " + arguments[0]->getName() + " of argument of function " + getName(), ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT);
+
+        DataTypes argument_types = { DataTypeUInt32 };
+        Array params_row;
+        AggregateFunctionProperties properties;
+        AggregateFunctionPtr bitmap_function = AggregateFunctionFactory::instance().get(
+            AggregateFunctionGroupBitmapData<UInt32>::name(), argument_types, params_row, properties);
+
+        return std::make_shared<DataTypeAggregateFunction>(bitmap_function, argument_types, params_row);
+    }
+
+    bool useDefaultImplementationForConstants() const override { return true; }
+
+    void executeImpl(Block & block, const ColumnNumbers & arguments, size_t result, size_t input_rows_count) const override
+    {
+        // Input ColumnString validation
+        const ColumnPtr column_string = block.getByPosition(arguments[0]).column;
+        const ColumnString * input = checkAndGetColumn<ColumnString>(column_string.get());
+
+        if (!input)
+            throw Exception(
+                "Illegal column " + block.getByPosition(arguments[0]).column->getName() + " of first argument of function " + getName(),
+                ErrorCodes::ILLEGAL_COLUMN);
+
+        // output data
+        DataTypes argument_types = { DataTypeUInt32 };
+        Array params_row;
+        AggregateFunctionProperties properties;
+        AggregateFunctionPtr bitmap_function = AggregateFunctionFactory::instance().get(
+            AggregateFunctionGroupBitmapData<UInt32>::name(), argument_types, params_row, properties);
+        auto col_to = ColumnAggregateFunction::create(bitmap_function);
+        col_to->reserve(input_rows_count);
+
+        // input preparation
+        const ColumnString::Offsets & src_offsets = input->getOffsets();
+        auto source = input->getChars().data();
+        size_t src_offset_prev = 0;
+        for (size_t i = 0; i < input_rows_count; ++i)
+        {
+            size_t srclen = src_offsets[i] - src_offset_prev - 1;
+
+            col_to->insertDefault();
+            AggregateFunctionGroupBitmapData<UInt32> & bitmap_data
+                = *reinterpret_cast<AggregateFunctionGroupBitmapData<UInt32> *>(col_to->getData()[i]);
+
+            // bitmap_data.rbs = deserialize(input[i])
+            bitmap_data.rbs.setRbFromBytes(reinterpret_cast<const uint8_t *>(source), srclen);
+
+            source += srclen + 1;
+            src_offset_prev = src_offsets[i];
+        }
+
+        block.getByPosition(result).column = std::move(col_to);
+    }
+};
+
 template <typename Name>
 class FunctionBitmapToArrayImpl : public IFunction
 {
@@ -1035,6 +1112,12 @@ struct NameBitmapBuild
     static constexpr auto name = "bitmapBuild";
 };
 using FunctionBitmapBuild = FunctionBitmapBuildImpl<NameBitmapBuild>;
+
+struct NameBitmapBuildFromBinaryRBMString
+{
+    static constexpr auto name = "bitmapBuildFromBinaryRBMString";
+};
+using FunctionBitmapBuildFromBinaryRBMString = FunctionBitmapBuildFromBinaryRBMStringImpl<NameBitmapBuildFromBinaryRBMString>;
 
 struct NameBitmapToArray
 {

@@ -126,6 +126,14 @@ public:
 
     roaring_bitmap_t * getRb() const { return rb; }
 
+    /**
+     * set roaring bitmap from serialized string
+     */
+    void setRbFromBytes(const uint8_t *s, size_t size)
+    {
+        rb = roaring_bitmap_portable_deserialize_safe(s, size);
+    }
+
     Small & getSmall() const { return small; }
 
     /**
