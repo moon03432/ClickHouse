@@ -129,7 +129,7 @@ public:
     /**
      * set roaring bitmap from serialized string
      */
-    void setRbFromBytes(const uint8_t *s, size_t size)
+    void setRbFromBytes(const char *s, size_t size)
     {
         rb = roaring_bitmap_portable_deserialize_safe(s, size);
     }

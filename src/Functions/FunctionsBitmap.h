@@ -4,6 +4,7 @@
 #include <Columns/ColumnAggregateFunction.h>
 #include <Columns/ColumnArray.h>
 #include <Columns/ColumnConst.h>
+#include <Columns/ColumnString.h>
 #include <Columns/ColumnVector.h>
 #include <Columns/ColumnsNumber.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
@@ -22,6 +23,7 @@ namespace DB
 {
 namespace ErrorCodes
 {
+    extern const int ILLEGAL_COLUMN;
     extern const int ILLEGAL_TYPE_OF_ARGUMENT;
     extern const int LOGICAL_ERROR;
 }
@@ -201,7 +203,7 @@ public:
         if (!isString(arguments[0]))
             throw Exception("Illegal type " + arguments[0]->getName() + " of argument of function " + getName(), ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT);
 
-        DataTypes argument_types = { DataTypeUInt32 };
+        DataTypes argument_types = { std::make_shared<DataTypeUInt32>() };
         Array params_row;
         AggregateFunctionProperties properties;
         AggregateFunctionPtr bitmap_function = AggregateFunctionFactory::instance().get(
@@ -224,7 +226,7 @@ public:
                 ErrorCodes::ILLEGAL_COLUMN);
 
         // output data
-        DataTypes argument_types = { DataTypeUInt32 };
+        DataTypes argument_types = { std::make_shared<DataTypeUInt32>() };
         Array params_row;
         AggregateFunctionProperties properties;
         AggregateFunctionPtr bitmap_function = AggregateFunctionFactory::instance().get(
@@ -245,7 +247,7 @@ public:
                 = *reinterpret_cast<AggregateFunctionGroupBitmapData<UInt32> *>(col_to->getData()[i]);
 
             // bitmap_data.rbs = deserialize(input[i])
-            bitmap_data.rbs.setRbFromBytes(reinterpret_cast<const uint8_t *>(source), srclen);
+            bitmap_data.rbs.setRbFromBytes(reinterpret_cast<const char *>(source), srclen);
 
             source += srclen + 1;
             src_offset_prev = src_offsets[i];
